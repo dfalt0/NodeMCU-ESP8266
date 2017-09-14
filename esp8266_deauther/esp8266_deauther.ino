@@ -15,9 +15,11 @@
 
 // Settings //
 
-//#define USE_DISPLAY /* <-- uncomment that if you want to use the display */
+#define USE_DISPLAY /* <-- uncomment that if you want to use the display */
 #define resetPin 4 /* <-- comment out or change if you need GPIO 4 for other purposes */
 #define USE_LED16 /* <-- for the Pocket ESP8266 which has a LED on GPIO 16 to indicate if it's running */
+//#define USE_WEBSERVER
+
 
 
 // Including everything for the OLED //
@@ -29,8 +31,10 @@
   #include "SH1106.h"
 
   //create display(Adr, SDA-pin, SCL-pin)
-  SSD1306 display(0x3c, 5, 4); //GPIO 5 = D1, GPIO 4 = D2
-  //SH1106 display(0x3c, 5, 4);
+  //SSD1306 display(0x3c, 5, 4); //GPIO 5 = D1, GPIO 4 = D2
+  SH1106 display(0x3c, 5, 4);
+
+  #include "screensaver.h"
   
   //button pins
   #define upBtn 12 //GPIO 12 = D6
@@ -60,7 +64,9 @@ extern "C" {
   #include "user_interface.h"
 }
 
+#ifdef USE_WEBSERVER
 ESP8266WebServer server(80);
+#endif
 
 #include <EEPROM.h>
 #include "data.h"
@@ -144,6 +150,8 @@ void stopWifi() {
   wifiMode = "OFF";
 }
 
+
+#ifdef USE_WEBSERVER
 void loadIndexHTML() {
   if(warning){
     sendFile(200, "text/html", data_indexHTML, sizeof(data_indexHTML));
@@ -194,7 +202,7 @@ void loadSettingsJS() {
 void loadStyle() {
   sendFile(200, "text/css;charset=UTF-8", data_styleCSS, sizeof(data_styleCSS));
 }
-
+#endif
 
 void startWiFi(bool start) {
   if (start) startWifi();
@@ -204,6 +212,9 @@ void startWiFi(bool start) {
 
 //==========AP-Scan==========
 void startAPScan() {
+
+  if(scanMode == "scanning...") return;
+  
   scanMode = "scanning...";
 #ifdef USE_DISPLAY
   drawInterface();
@@ -217,14 +228,17 @@ void startAPScan() {
     sites = rows / rowsPerSite;
     if (rows % rowsPerSite > 0) sites++;
 #endif
-
+#ifdef USE_WEBSERVER
     server.send ( 200, "text/json", "true");
+#endif
     attack.stopAll();
     scanMode = "SCAN";
   }
 }
 
+#ifdef USE_WEBSERVER
 void sendAPResults() {
+  
   apScan.sendResults();
 }
 
@@ -348,6 +362,7 @@ void addSSID() {
     server.send( 200, "text/json", "true");
   }else server.send( 200, "text/json", "false");
 }
+
 
 void cloneSelected(){
   if(apScan.selectedSum > 0){
@@ -479,6 +494,11 @@ void resetSettings() {
   settings.reset();
   server.send( 200, "text/json", "true" );
 }
+#endif
+
+
+
+
 
 void setup() {
 
@@ -488,7 +508,7 @@ void setup() {
   pinMode(16, OUTPUT);
   digitalWrite(16, LOW);
 #endif
-  
+
   Serial.begin(115200);
   
   attackMode_deauth = "START";
@@ -512,7 +532,7 @@ void setup() {
   attack.generate();
 
   /* ========== Web Server ========== */
-
+#ifdef USE_WEBSERVER
   /* HTML */
   server.onNotFound(load404);
 
@@ -565,6 +585,7 @@ void setup() {
   server.on("/enableRandom.json",enableRandom);
 
   server.begin();
+#endif
 
 #ifdef USE_DISPLAY
   display.init();
@@ -611,7 +632,9 @@ void loop() {
   if (clientScan.sniffing) {
     if (clientScan.stop()) startWifi();
   } else {
+    #ifdef USE_WEBSERVER
     server.handleClient();
+    #endif
     attack.run();
   }
 
@@ -703,8 +726,17 @@ void loop() {
       display.clear();
       display.display();
     }
+    screensavertimer = 0;
+    lastactivity = millis();
+  } else {
+    screensavertimer = millis() - lastactivity;
   }
-  drawInterface();
+  
+  if(screensavertimer>saveeafter) {
+    drawScreenSaver();
+  } else {
+    drawInterface();
+  }
 #endif
 
 }
