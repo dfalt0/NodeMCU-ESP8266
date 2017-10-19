@@ -541,14 +541,37 @@ void setup() {
   }
 
 
-  for(int i=0;i<sizeof(data_vendors)/5;i++) {
-    uint8_t maca = pgm_read_byte_near(data_vendors + i * 5 + 0);
-    uint8_t macb = pgm_read_byte_near(data_vendors + i * 5 + 1);
-    uint8_t macc = pgm_read_byte_near(data_vendors + i * 5 + 2);
-    Serial.println( data_getVendor(maca,macb, macc));
-  }
+  uint16_t vendorlen = (sizeof(data_vendors)/5);
 
-  //Serial.println( data_getVendor(0xFC, 0xD8, 0x48) );
+  Serial.print("found ");
+  Serial.print( vendorlen );
+  Serial.println(" vendors");
+/*
+  for(uint16_t i=0; i<vendorlen; i++) {
+    uint8_t maca = pgm_read_byte_near(data_vendors + (i * 5) + 0);
+    uint8_t macb = pgm_read_byte_near(data_vendors + (i * 5) + 1);
+    uint8_t macc = pgm_read_byte_near(data_vendors + (i * 5) + 2);
+    Serial.print("[");
+    Serial.print(i);
+    Serial.print("] ");
+    Serial.print(maca, HEX);
+    Serial.print(":");
+    Serial.print(macb, HEX);
+    Serial.print(":");
+    Serial.print(macc, HEX);
+    Serial.print(" ");
+    
+    Serial.println( data_getVendor(maca,macb, macc));
+    yield();
+  }
+*/
+  Serial.println( data_getVendor(0xFC, 0xF8, 0xB7) ); // should return "Tronte" (end of list)
+  Serial.println( data_getVendor(0xFC, 0xF1, 0xCD) ); // should return "Optex" (end of list)
+  Serial.println( data_getVendor(0x00, 0x22, 0x17) ); // should return "NeatEl" (middle of the list)
+  Serial.println( data_getVendor(0x00, 0x0C, 0x7F) ); // should return "Synert" (beginning list)
+  Serial.println( data_getVendor(0xF8, 0x3D, 0x4E) ); // should return "Softli" (beginning list below 1024 index)
+  Serial.println( data_getVendor(0x00, 0x01, 0x41) ); // CableP
+  Serial.println( data_getVendor(0x00, 0x08, 0x51) ); // Canadi
   Serial.println("Started");
 }
 

@@ -101,9 +101,9 @@ String data_getVendor(uint8_t first, uint8_t second, uint8_t third) {
         if (data_macBuffer == third) {
           data_vendorStrBuffer = "";
 
-          uint16_t vendorindex = ( pgm_read_byte_near(data_vendors + i * vendorBufferSize + 3)  *256) + pgm_read_byte_near(data_vendors + i * vendorBufferSize + 4);
+          uint16_t vendorindex = ( pgm_read_byte_near(data_vendors + (i * vendorBufferSize) + 3)  *256) + pgm_read_byte_near(data_vendors + (i * vendorBufferSize) + 4);
           uint16_t vendorbitpos = vendorindex * 6 * 7; // all vendor names are 6 chars long, using 7 bits
-          uint8_t  vendorbitoffset =  vendorbitpos % 8;
+          uint16_t vendorbitoffset =  vendorbitpos % 8;
           uint16_t vendorbytepos = vendorbitpos/8;
           char binstr[49];
           
