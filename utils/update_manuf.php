@@ -25,15 +25,20 @@ foreach($ouilines as $line) {
   $parts = explode("\t", $line);
   if(count($parts)<3) continue;
   $mac = trim($parts[0]);
-  if(strlen($mac)!=8) continue; // F8:02:78
-  $vendorname = trim($parts[1]);
+  if(strlen($mac)!=8) continue; 
+  $vendorname = iconv('UTF-8', 'ASCII//IGNORE', trim($parts[1]));
   $vendorname = str_replace(" ", "", $vendorname);
+  
   if(strlen($vendorname)>$vendorlen) {
-    $vendorname = mb_substr($vendorname, 0, $vendorlen);
+    $chars = mb_str_split($vendorname);
+    while( strlen( implode("", $chars) ) > $vendorlen ) {
+      array_pop($chars);
+    }
+    $vendorname = implode("", $chars); //mb_substr($vendorname, 0, $vendorlen);
   }
 
   if(strlen($vendorname)<$vendorlen) {
-    $vendorname = $vendorname.str_repeat(" ", $vendorlen-strlen($vendorname));
+    $vendorname = $vendorname.str_repeat("~", $vendorlen-strlen($vendorname));
   }
 
   if(!isset($uniqvendors[$vendorname])) {
@@ -50,19 +55,22 @@ foreach($ouilines as $line) {
   $vendorlongname = trim($parts[2]);
 
   $vendorbymac[$mac] = $vendorname;
-
-  echo "$mac\t [".strlen($vendorname)."] $vendorname\t$vendorlongname\n";
+  
+  if(strlen($vendorname)!=6 || trim($vendorname)=='') {
+    echo "$mac\t [".strlen($vendorname)."] $vendorname\t$vendorlongname\n";
+  }
+  
   $total++;
 }
 
 echo "Unique vendors ".count($uniqvendors)." / Total vendord $total\n";
 echo "Total vendor len: $totalvendorlen / Unique vendor len: ".strlen(implode("", array_keys($uniqvendors)))."\n";
 
-
+//exit(0);
 
 /* build unique char list from unique vendor list */
 
-$uniqchars = array();
+$uniqchars = array( );
 $total = 0;
 $uniq = 0;
 $maxstrlen = 0;
@@ -93,6 +101,8 @@ if(isset($uniqchars[" "])) {
 } else {
   echo "No empty chars\n";
 }
+
+//exit(0);
 
 
 /* build mac list output, attach vendor idx */
@@ -158,20 +168,36 @@ $charindexstr .= "\n};\n";
 /* vendors glossary convert char indexes to 7-bit as binary strings */
 
 $binvendorstr = "";
+//$allchars = array_keys($uniqchars);
+//echo array_search("M", $allchars);
+
 
 foreach($uniqvendors as $vendor => $meta) {
   $chars = mb_str_split($vendor);
+  
+  if(count($chars)!=6) echo "WTF on $vendor / ".count($char)." \n"; 
+  
   foreach($chars as $char) {
-    $binvendorstr .= sprintf('%07b', $uniqchars[$char]);
+    if(!isset($uniqchars[$char])) {
+      echo "WTF on $vendor / '$char' (chr ".ord($char).") / '".$uniqchars[' ']."'\n"; 
+    } else {
+      $binvendorstr .= sprintf('%07b', $uniqchars[$char]);/*$uniqchars[$char]*/
+    }
   }
 }
+
+//print_r($uniqchars);exit;
+
+file_put_contents("indexed_vendorlist", implode("\n", array_keys($uniqvendors)));
+
+
 
 $octets = str_split($binvendorstr, 8);
 
 echo "last : ".end($octets)."\n";
 
 $wrap = 0;
-$num = 9;
+$num = 12;
 $lines = 0;
 
 
@@ -208,7 +234,7 @@ file_put_contents("oui7bits.h", $out);
 
 
 echo "\n";
-echo "$lines lines\n";
+echo "$lines octet lines\n";
 
 function mb_str_split( $string ) {
     # Split at all position not after the start: ^
