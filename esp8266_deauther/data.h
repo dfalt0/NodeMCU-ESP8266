@@ -1,7 +1,7 @@
 #ifndef data_h
 #define data_h
 
-#include "oui.h"
+#include "oui7bits.h"
 
 static uint8_t data_macBuffer;
 static char data_vendorBuffer;
@@ -70,25 +70,86 @@ bool loadFromFlash(String path) {
   if(path.endsWith("css")) dataType = "text/css;charset=UTF-8";
   if(path.endsWith("js")) dataType = "text/javascript";
   if(path.endsWith("json")) dataType = "text/json";
+  if(path.endsWith("ico")) dataType = "image/x-icon";
 
   return sendSPIFFSFile(path, dataType);
 
 }
 
+/*
+char * int2bin7(uint8_t x)
+{
+  static char buffer[8];
+  for (int i=0; i<7; i++) buffer[6-i] = '0' + ((x & (1 << i)) > 0);
+  buffer[7] ='\0';
+  return buffer;
+}*/
+
 String data_getVendor(uint8_t first, uint8_t second, uint8_t third) {
-  data_vendorStrBuffer = "";
+  uint8_t vendorBufferSize = 5; // 3 bytes for vendor mac, 2 bytes for vendor index
+  
+  data_vendorStrBuffer = "??????";
+  uint16_t bufferpos = 0;
 
-  for (int i = 0; i < sizeof(data_vendors) / 11; i++) {
-
-    data_macBuffer = pgm_read_byte_near(data_vendors + i * 11 + 0);
+  for (int i = 0; i < sizeof(data_vendors) / vendorBufferSize; i++) {
+    
+    data_macBuffer = pgm_read_byte_near(data_vendors + i * vendorBufferSize + 0);
     if (data_macBuffer == first) {
-      data_macBuffer = pgm_read_byte_near(data_vendors + i * 11 + 1);
+      data_macBuffer = pgm_read_byte_near(data_vendors + i * vendorBufferSize + 1);
       if (data_macBuffer == second) {
-        data_macBuffer = pgm_read_byte_near(data_vendors + i * 11 + 2);
+        data_macBuffer = pgm_read_byte_near(data_vendors + i * vendorBufferSize + 2);
+        if (data_macBuffer == third) {
+          data_vendorStrBuffer = "";
+
+          uint16_t vendorindex = ( pgm_read_byte_near(data_vendors + i * vendorBufferSize + 3)  *256) + pgm_read_byte_near(data_vendors + i * vendorBufferSize + 4);
+          uint16_t vendorbitpos = vendorindex * 6 * 7; // all vendor names are 6 chars long, using 7 bits
+          uint8_t  vendorbitoffset =  vendorbitpos % 8;
+          uint16_t vendorbytepos = vendorbitpos/8;
+          char binstr[49];
+          
+          for (int h = 0; h < 6; h++) { // read 6 bytes
+            uint8_t bin8 = pgm_read_byte_near(data_vendorglossary + vendorbytepos + h);
+            for (int k=0; k<8; k++) {
+              binstr[7-k +(h*8)] = '0' + ((bin8 & (1 << k)) > 0);
+            }
+          }
+          
+          for (int h = 0; h < 6; h++) {
+            char input_binary_string[8];// 7 bits + 1 null byte
+            for(int k=0;k<7;k++) {
+              input_binary_string[k] = binstr[h*7+k+vendorbitoffset];
+            }
+            input_binary_string[7] = '\0';
+            long value = strtoul(input_binary_string, NULL, 2);
+            data_vendorStrBuffer += glossary[value];
+          }
+          return data_vendorStrBuffer;
+        }
+
+      }
+    }
+  }
+  return data_vendorStrBuffer;
+}
+
+
+/*
+String data_getVendor(uint8_t first, uint8_t second, uint8_t third) {
+  uint8_t vendorBufferSize = 9; // 3 bytes for vendor mac, 8 bytes for vendor name
+  
+  data_vendorStrBuffer = "??????";
+
+  for (int i = 0; i < sizeof(data_vendors) / vendorBufferSize; i++) {
+
+    data_macBuffer = pgm_read_byte_near(data_vendors + i * vendorBufferSize + 0);
+    if (data_macBuffer == first) {
+      data_macBuffer = pgm_read_byte_near(data_vendors + i * vendorBufferSize + 1);
+      if (data_macBuffer == second) {
+        data_macBuffer = pgm_read_byte_near(data_vendors + i * vendorBufferSize + 2);
         if (data_macBuffer == third) {
 
           for (int h = 0; h < 8; h++) {
-            data_vendorBuffer = (char)pgm_read_byte_near(data_vendors + i * 11 + 3 + h);
+            data_vendorBuffer = (char)pgm_read_byte_near(data_vendors + i * vendorBufferSize + 3 + h);
             if (data_vendorBuffer != 0x00) data_vendorStrBuffer += data_vendorBuffer;
           }
           return data_vendorStrBuffer;
@@ -100,7 +161,7 @@ String data_getVendor(uint8_t first, uint8_t second, uint8_t third) {
   }
 
   return data_vendorStrBuffer;
-}
+}*/
 /*
 char* data_getStyle() { 
   int _size = sizeof(data_styleCSS);

@@ -7,6 +7,10 @@
 
 // Including some libraries we need //
 #include <Arduino.h>
+// More Includes! //
+extern "C" {
+  #include "user_interface.h"
+}
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
@@ -55,10 +59,6 @@
   bool displayOn = true;
 #endif
 
-// More Includes! //
-extern "C" {
-  #include "user_interface.h"
-}
 
 ESP8266WebServer server(80);
 
@@ -539,6 +539,17 @@ void setup() {
     delay(1600);
 #endif
   }
+
+
+  for(int i=0;i<sizeof(data_vendors)/5;i++) {
+    uint8_t maca = pgm_read_byte_near(data_vendors + i * 5 + 0);
+    uint8_t macb = pgm_read_byte_near(data_vendors + i * 5 + 1);
+    uint8_t macc = pgm_read_byte_near(data_vendors + i * 5 + 2);
+    Serial.println( data_getVendor(maca,macb, macc));
+  }
+
+  //Serial.println( data_getVendor(0xFC, 0xD8, 0x48) );
+  Serial.println("Started");
 }
 
 void loop() {

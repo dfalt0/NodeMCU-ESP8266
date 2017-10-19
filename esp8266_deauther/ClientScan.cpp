@@ -84,7 +84,7 @@ bool ClientScan::stop() {
 int ClientScan::add(Mac adr){
   int clientNum = clients.getNum(adr);
   if (clientNum == -1 && results < maxClientScanResults) {
-    data_getVendor(adr._get(0), adr._get(1), adr._get(2)).toCharArray(vendors[results], 9);
+    data_getVendor(adr._get(0), adr._get(1), adr._get(2)).toCharArray(vendors[results], 7);
     connectedToAp[results] = -1;
     results++;
     int clientNum = clients.add(adr);

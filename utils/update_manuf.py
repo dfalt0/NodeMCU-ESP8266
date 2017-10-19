@@ -47,7 +47,7 @@ const static uint8_t data_vendors[] PROGMEM = {///*
         mac, short_desc, *rest = line.strip().split('\t')
 
         # Limiting short_desc to 8 chars
-        short_desc = short_desc[0:8]
+        short_desc = short_desc[0:6]
 
         # Convert to ascii
         short_desc = short_desc.encode("ascii", "ignore").decode()
@@ -57,7 +57,7 @@ const static uint8_t data_vendors[] PROGMEM = {///*
             continue
         else:
             # Convert to esp8266_deauther format
-            short_desc = short_desc.ljust(8, '\0')
+            short_desc = short_desc.ljust(6, '\0')
             hex_sdesc = ", 0x".join("{:02x}".format(ord(c)) for c in short_desc)
 
             (oc1, oc2, oc3) = mac.split(':')
