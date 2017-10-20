@@ -15,7 +15,7 @@ char glossary [NUMBER_OF_VENDOR_NAMES] [MAX_MB_SIZE] = {
 
 
 
-const static uint8_t data_vendors[] PROGMEM = {
+const static uint8_t data_macaddresses[] PROGMEM = {
   /* mac1, mac2, mac3, glossaryidx1, glossaryidx2 */ 
 
   0x00, 0x00, 0x00, /* 00:00: */ 0x00, 0x00, 
@@ -22798,7 +22798,7 @@ const static uint8_t data_vendors[] PROGMEM = {
 
 
 
-const static uint8_t data_vendorglossary[] PROGMEM = {
+const static uint8_t data_vendorglossary[64518] PROGMEM = {
 
   
   0x00, 0x00, 0x08, 0x00, 0x00, 0x41, 0x03, 0x08, 0x14, 0x30, 0x71, 0x01, 

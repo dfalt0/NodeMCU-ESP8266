@@ -1,5 +1,7 @@
 <?php
 
+echo "\n\n";
+
 mb_internal_encoding("UTF-8");
 
 $vendorlen = 6;
@@ -57,14 +59,14 @@ foreach($ouilines as $line) {
   $vendorbymac[$mac] = $vendorname;
   
   if(strlen($vendorname)!=6 || trim($vendorname)=='') {
-    echo "$mac\t [".strlen($vendorname)."] $vendorname\t$vendorlongname\n";
+    echo " !!!!!! Error: $mac\t [".strlen($vendorname)."] $vendorname\t$vendorlongname\n";
   }
   
   $total++;
 }
 
-echo "Unique vendors ".count($uniqvendors)." / Total vendord $total\n";
-echo "Total vendor len: $totalvendorlen / Unique vendor len: ".strlen(implode("", array_keys($uniqvendors)))."\n";
+echo " **** Unique vendors ".count($uniqvendors)." / Total mac addresses $total\n";
+echo " **** Total vendor len: $totalvendorlen / Unique vendor strlen: ".strlen(implode("", array_keys($uniqvendors)))."\n";
 
 //exit(0);
 
@@ -85,7 +87,7 @@ foreach($uniqvendors as $vendor => $meta) {
     if(!isset($uniqchars[$char])) {
       $uniqchars[$char] = $uniq;
       $uniq++;
-      echo "[".$char."=".ord($char)."] ";
+      // echo "[".$char."=".ord($char)."] ";
       if(strlen($char)>$maxstrlen) $maxstrlen = strlen($char);
     } else {
       //$uniqchars[$char]++;
@@ -93,13 +95,14 @@ foreach($uniqvendors as $vendor => $meta) {
     $total++;
   }
 }
-echo "\n";
 
-echo "Unique chars ".count($uniqchars)." / Total chars $total\n";
+echo " **** Unique chars ".count($uniqchars)." / Total chars in vendorlist $total\n";
+echo " **** CHARS: ".implode("", array_keys($uniqchars))."\n";
+
 if(isset($uniqchars[" "])) {
-  echo "Empty chars ".$uniqchars[" "]."\n";
+  echo " **** Found [space] chars \n";
 } else {
-  echo "No empty chars\n";
+  echo " **** No [space] chars found\n";
 }
 
 //exit(0);
@@ -108,7 +111,7 @@ if(isset($uniqchars[" "])) {
 /* build mac list output, attach vendor idx */
 
 $macvendorstr = "
-const static uint8_t data_vendors[] PROGMEM = {
+const static uint8_t data_macaddresses[] PROGMEM = {
   /* mac1, mac2, mac3, glossaryidx1, glossaryidx2 */ 
 
 ";
@@ -121,7 +124,7 @@ foreach($vendorbymac as $mac => $vendor) {
   $hexbytes = str_split($indhex, 2); // split them
   $macstr = "  0x".implode(", 0x", $macparts).", /* $vendor */ 0x".$hexbytes[0].", 0x".$hexbytes[1].", ";
   $macvendorstr .= $macstr."\n";
-  echo $macstr."\n";
+  //echo $macstr."\n";
 }
 
 
@@ -146,9 +149,10 @@ char glossary [NUMBER_OF_VENDOR_NAMES] [MAX_MB_SIZE] = {
 $wrap = 0;
 $num = 20;
 $lines = 0;
-
+$indexedchars = array();
 
 foreach($uniqchars as $char => $id) {
+  $indexedchars[$id] = $char;
   if($wrap++%$num==0) {
     $lines++;
     $charindexstr.= "\n  ";
@@ -170,7 +174,7 @@ $charindexstr .= "\n};\n";
 $binvendorstr = "";
 //$allchars = array_keys($uniqchars);
 //echo array_search("M", $allchars);
-
+$count = 0;
 
 foreach($uniqvendors as $vendor => $meta) {
   $chars = mb_str_split($vendor);
@@ -184,17 +188,17 @@ foreach($uniqvendors as $vendor => $meta) {
       $binvendorstr .= sprintf('%07b', $uniqchars[$char]);/*$uniqchars[$char]*/
     }
   }
+  
+  if($count++>1540 && $count < 1640) echo $vendor."\n";
+  
 }
 
-//print_r($uniqchars);exit;
 
-file_put_contents("indexed_vendorlist", implode("\n", array_keys($uniqvendors)));
-
-
+echo " **** CRC success for bin vendor str len : ".strlen($binvendorstr)." (".(strlen($binvendorstr)/(7*6))." = ".count($uniqvendors).")\n";
 
 $octets = str_split($binvendorstr, 8);
 
-echo "last : ".end($octets)."\n";
+echo " ** Last byte: &b".end($octets)."\n";
 
 $wrap = 0;
 $num = 12;
@@ -209,19 +213,25 @@ $charindexstr
 $macvendorstr
 
 
-const static uint8_t data_vendorglossary[] PROGMEM = {
+const static uint8_t data_vendorglossary[".(count($octets))."] PROGMEM = {
 
   ";
 
 
 /* vendors glossary encode 7-bit binary as 8-bit hex */
 
+$octvendors = array();
+
+
 foreach($octets as $octet) {
   if($wrap++%$num==0) {
     $lines++;
     $out.= "\n  ";
   }
-  $out.= sprintf('0x%02X', bindec($octet)).", ";
+  $decoct = bindec($octet);
+  if($decoct>255) die("DOH ".$octet);
+  $out.= sprintf('0x%02X', $decoct).", ";
+  $octvendors[] = $decoct;
 }
 
 $out = substr($out, 0, -2);
@@ -230,11 +240,86 @@ $out .= "
 #endif
 ";
 
-file_put_contents("oui7bits.h", $out);
+file_put_contents("../esp8266_deauther/oui7bits.h", $out);
 
 
-echo "\n";
-echo "$lines octet lines\n";
+echo " **** SAVED oui7bits.h\n";
+
+
+echo " ************ now rebuilding data locally ***************** \n";
+
+/****
+   DEBUG, rebuild testing
+****/
+
+$indexed_vendorlist = implode("\n", array_keys($uniqvendors));
+
+file_put_contents("indexed_vendorlist", $indexed_vendorlist);
+
+$septets = str_split($binvendorstr, 7);
+
+$outverify = "";
+$outvcount = 1;
+
+foreach($septets as $septet) {
+  $outverify.= $indexedchars[bindec($septet)];
+  if($outvcount%6==0) {
+    $outverify.= "\n";
+  }
+  $outvcount++;
+}
+
+$outverify = trim($outverify);
+
+file_put_contents("rebuilt_vendorlist", $outverify);
+
+if($indexed_vendorlist!=$outverify) {
+  die("Invalid binary\n");
+}
+
+
+$octout = "";
+$octcount = 0;
+$maxindex = count($octvendors)-1;
+
+foreach($octvendors as $index => $octvendor) {
+  if($index == $maxindex) {
+    $octbin8 = sprintf('%b', $octvendor);
+    //if(strlen($octbin8)!=8) die("duh at $octcount : $octbin8 ".strlen($octout)." ".$octvendor);
+    echo "Last octvendor len ($octbin8) : ".strlen($octbin8)."\n";
+  } else {
+    $octbin8 = sprintf('%08b', $octvendor);
+  }
+  $octout .= $octbin8;
+
+  //$octcount++;
+}
+
+//exit(0);
+
+$octout7bit = str_split($octout, 7);
+
+$outverify = "";
+$outvcount = 1;
+
+foreach($octout7bit as $septet) {
+  $outverify.= $indexedchars[bindec($septet)];
+  if($outvcount%6==0) {
+    $outverify.= "\n";
+  }
+  $outvcount++;
+}
+
+$outverify = trim($outverify);
+
+file_put_contents("rebuilt_binvendorlist", $outverify);
+
+if($indexed_vendorlist!=$outverify) {
+  die("Decoded Invalid binary\n");
+} else {
+  echo "Indexed vendorlist decoded okay !";
+}
+
 
 function mb_str_split( $string ) {
     # Split at all position not after the start: ^
@@ -242,64 +327,3 @@ function mb_str_split( $string ) {
     return preg_split('/(?<!^)(?!$)/u', $string );
 }
 
-
-exit(0);
-
-
-
-
-
-
-
-
-
-/*
-
-
-const static uint8_t data_vendors[] PROGMEM = {
-"""
-
-    for line in data:
-        line = line.decode()
-
-        # Skipping empty lines and comments
-        if line.startswith('#') or line.startswith('\n'):
-            continue
-
-        mac, short_desc, *rest = line.strip().split('\t')
-
-        # Limiting short_desc to 8 chars
-        short_desc = short_desc[0:6]
-
-        # Convert to ascii
-        short_desc = short_desc.encode("ascii", "ignore").decode()
-
-        mac_octects = len(mac.split(':'))
-        if mac_octects == 6:
-            continue
-        else:
-            # Convert to esp8266_deauther format
-            short_desc = short_desc.ljust(6, '\0')
-            hex_sdesc = ", 0x".join("{:02x}".format(ord(c)) for c in short_desc)
-
-            (oc1, oc2, oc3) = mac.split(':')
-
-            out = out + ("  0x{}, 0x{}, 0x{}, 0x{},\n".format(oc1.upper(), oc2.upper(), oc3.upper(),
-                                                              hex_sdesc.upper().replace('X', 'x')))
-
-    out = out[:-2] # Removing last comma
-    out = out + "\n};\n#endif"
-
-    # Saving to file
-    if filename:
-        with open(filename, 'w') as out_file:
-            out_file.write("%s" % out)
-    else:
-        print(out)
-
-if __name__ == "__main__":
-    options = parse_options()
-    generate_oui_h(options.url, options.output)
-
-
-*/

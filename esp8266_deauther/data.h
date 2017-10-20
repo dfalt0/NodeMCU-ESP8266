@@ -85,44 +85,82 @@ char * int2bin7(uint8_t x)
   return buffer;
 }*/
 
+
+
+
+char input_binary_string[8];
+
 String data_getVendor(uint8_t first, uint8_t second, uint8_t third) {
-  uint8_t vendorBufferSize = 5; // 3 bytes for vendor mac, 2 bytes for vendor index
+
+  char binstr[49];
+  uint32_t vendorindex;
+  uint32_t vendorbitpos;
+  uint32_t vendorbitoffset;
+  uint32_t vendorbytepos;
+  uint8_t bin8;
+  long glossvalue;
+  uint32_t bufferpos;
+  uint32_t bufferSize;
+  uint8_t vendorBufferSize = 5;
+  //uint8_t vendorBufferSize = 5;
   
   data_vendorStrBuffer = "??????";
-  uint16_t bufferpos = 0;
+  bufferpos = 0;
+  bufferSize = sizeof(data_macaddresses) / vendorBufferSize;
 
-  for (int i = 0; i < sizeof(data_vendors) / vendorBufferSize; i++) {
+  for (uint16_t i = 0; i < bufferSize; i++) {
     
-    data_macBuffer = pgm_read_byte_near(data_vendors + i * vendorBufferSize + 0);
+    data_macBuffer = pgm_read_byte(data_macaddresses + i * vendorBufferSize + 0);
     if (data_macBuffer == first) {
-      data_macBuffer = pgm_read_byte_near(data_vendors + i * vendorBufferSize + 1);
+      data_macBuffer = pgm_read_byte(data_macaddresses + i * vendorBufferSize + 1);
       if (data_macBuffer == second) {
-        data_macBuffer = pgm_read_byte_near(data_vendors + i * vendorBufferSize + 2);
+        data_macBuffer = pgm_read_byte(data_macaddresses + i * vendorBufferSize + 2);
         if (data_macBuffer == third) {
           data_vendorStrBuffer = "";
 
-          uint16_t vendorindex = ( pgm_read_byte_near(data_vendors + (i * vendorBufferSize) + 3)  *256) + pgm_read_byte_near(data_vendors + (i * vendorBufferSize) + 4);
-          uint16_t vendorbitpos = vendorindex * 6 * 7; // all vendor names are 6 chars long, using 7 bits
-          uint16_t vendorbitoffset =  vendorbitpos % 8;
-          uint16_t vendorbytepos = vendorbitpos/8;
-          char binstr[49];
+          vendorindex = ( pgm_read_byte(data_macaddresses + (i * vendorBufferSize) + 3)  *256) + pgm_read_byte(data_macaddresses + (i * vendorBufferSize) + 4);
+          vendorbitpos = vendorindex * 6 * 7; // all vendor names are 6 chars long, using 7 bits
+          vendorbitoffset =  vendorbitpos % 8;
+          vendorbytepos = vendorbitpos/8;
+          binstr[49];
           
           for (int h = 0; h < 6; h++) { // read 6 bytes
-            uint8_t bin8 = pgm_read_byte_near(data_vendorglossary + vendorbytepos + h);
+            bin8 = pgm_read_byte(data_vendorglossary + vendorbytepos + h);
             for (int k=0; k<8; k++) {
               binstr[7-k +(h*8)] = '0' + ((bin8 & (1 << k)) > 0);
             }
           }
           
           for (int h = 0; h < 6; h++) {
-            char input_binary_string[8];// 7 bits + 1 null byte
+            input_binary_string[8];// 7 bits + 1 null byte
             for(int k=0;k<7;k++) {
               input_binary_string[k] = binstr[h*7+k+vendorbitoffset];
             }
             input_binary_string[7] = '\0';
-            long value = strtoul(input_binary_string, NULL, 2);
-            data_vendorStrBuffer += glossary[value];
+            glossvalue = strtoul(input_binary_string, NULL, 2);
+            if(glossvalue>128) {
+              while(1);
+            }
+            data_vendorStrBuffer += glossary[glossvalue];
           }
+
+/*
+          if(data_vendorStrBuffer.length()!=6) {
+            Serial.print("Spooky content at ");
+            Serial.print(vendorbytepos);
+            Serial.print(" w offset ");
+            Serial.print(vendorbitoffset);
+            Serial.println();
+            delay(1000);
+            return "BORDEL";
+          }
+
+          Serial.print(vendorbytepos);
+          Serial.print(" w offset ");
+          Serial.print(vendorbitoffset);
+          Serial.print(" ");
+*/
+
           return data_vendorStrBuffer;
         }
 
@@ -202,8 +240,8 @@ int eepromReadInt(int adr) {
 }
 
 void getRandomVendorMac(uint8_t *buf) {
-  int _macRandom = random(sizeof(data_vendors) / 11);
-  for (int h = 0; h < 3; h++) buf[h] = pgm_read_byte_near(data_vendors + _macRandom * 11 + h);
+  int _macRandom = random(sizeof(data_macaddresses) / 11);
+  for (int h = 0; h < 3; h++) buf[h] = pgm_read_byte_near(data_macaddresses + _macRandom * 11 + h);
   for (int h = 0; h < 3; h++) buf[h + 3] = random(255);
 }
 
