@@ -1,6 +1,6 @@
-## Deprecated - ESP8266 Deauther
+# Deprecated - ESP8266 Deauther
 
-# Copypasted a long time ago bc of lost links
+## Copypasted a long time ago bc of lost links
 
 Deauthentication attack and other exploits using an ESP8266
 
